@@ -3,10 +3,10 @@ import ReactDOM from 'react-dom/client';
 
 // --- 設定データ ---
 const TEAMS = [
-  { id: 'team-red', name: '赤チーム', color: 'bg-red-500', hex: '#ef4444' },
-  { id: 'team-blue', name: '青チーム', color: 'bg-blue-500', hex: '#3b82f6' },
-  { id: 'team-yellow', name: '黄チーム', color: 'bg-yellow-400', hex: '#facc15' },
-  { id: 'team-green', name: '緑チーム', color: 'bg-green-500', hex: '#22c55e' },
+  { id: 'team-red', name: '赤チーム', color: 'bg-red-500' },
+  { id: 'team-blue', name: '青チーム', color: 'bg-blue-500' },
+  { id: 'team-yellow', name: '黄チーム', color: 'bg-yellow-400' },
+  { id: 'team-green', name: '緑チーム', color: 'bg-green-500' },
 ];
 
 const GAMES = [
@@ -45,15 +45,18 @@ const App = () => {
   const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
   const [selectedRound, setSelectedRound] = useState(0);
 
+  // データの読み込み
   useEffect(() => {
-    const saved = localStorage.getItem('oonari_vbc_xmas_final_v2');
+    const saved = localStorage.getItem('oonari_vbc_xmas_final_v3');
     if (saved) setScores(JSON.parse(saved));
   }, []);
 
+  // データの保存
   useEffect(() => {
-    localStorage.setItem('oonari_vbc_xmas_final_v2', JSON.stringify(scores));
+    localStorage.setItem('oonari_vbc_xmas_final_v3', JSON.stringify(scores));
   }, [scores]);
 
+  // ランキング計算
   const rankings = useMemo(() => {
     const totals = TEAMS.map(team => {
       const total = scores
@@ -64,6 +67,7 @@ const App = () => {
     return totals.sort((a, b) => b.totalScore - a.totalScore).map((t, i) => ({ ...t, rank: i + 1 }));
   }, [scores]);
 
+  // スコア更新
   const updateScore = (teamId: string, gameId: string, roundIdx: number, pts: number) => {
     setScores(prev => {
       const filtered = prev.filter(s => !(s.teamId === teamId && s.gameId === gameId && s.roundIndex === roundIdx));
@@ -75,7 +79,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen pb-24 flex flex-col">
-      {/* ヘッダー：クラブ名を「おおなり」に修正 */}
+      {/* ヘッダー */}
       <header className="christmas-gradient text-white p-6 shadow-xl relative overflow-hidden shrink-0">
         <div className="absolute top-[-10px] right-[-10px] text-white/10 text-8xl rotate-12 animate-bounce-subtle">🎄</div>
         <div className="relative z-10">
@@ -217,24 +221,15 @@ const App = () => {
       </main>
 
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-white rounded-3xl flex items-center justify-center p-2 z-50 shadow-2xl w-[90%] max-sm:max-w-[320px]">
-        <button 
-          onClick={() => setActiveTab('leaderboard')} 
-          className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'leaderboard' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300'}`}
-        >
+        <button onClick={() => setActiveTab('leaderboard')} className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'leaderboard' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300'}`}>
           <i className="fas fa-trophy text-lg"></i>
           <span className="text-[9px] font-black mt-1">順位</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('input')} 
-          className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'input' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-300'}`}
-        >
+        <button onClick={() => setActiveTab('input')} className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'input' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-300'}`}>
           <i className="fas fa-edit text-lg"></i>
           <span className="text-[9px] font-black mt-1">入力</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('admin')} 
-          className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'admin' ? 'bg-gray-800 text-white shadow-lg' : 'text-gray-300'}`}
-        >
+        <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'admin' ? 'bg-gray-800 text-white shadow-lg' : 'text-gray-300'}`}>
           <i className="fas fa-cog text-lg"></i>
           <span className="text-[9px] font-black mt-1">設定</span>
         </button>
