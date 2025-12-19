@@ -16,7 +16,6 @@ const GAMES = [
   { id: 'game-relay', name: 'リレー', icon: '🏃', rounds: 2, type: 'ranking-40' },
 ];
 
-// --- 順位表のバーグラフ ---
 const RankingChart = ({ rankings }: { rankings: any[] }) => {
   const max = Math.max(...rankings.map(d => d.totalScore), 1);
   return (
@@ -45,18 +44,15 @@ const App = () => {
   const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
   const [selectedRound, setSelectedRound] = useState(0);
 
-  // データの読み込み
   useEffect(() => {
-    const saved = localStorage.getItem('oonari_vbc_xmas_final_v3');
+    const saved = localStorage.getItem('oonari_vbc_xmas_v5');
     if (saved) setScores(JSON.parse(saved));
   }, []);
 
-  // データの保存
   useEffect(() => {
-    localStorage.setItem('oonari_vbc_xmas_final_v3', JSON.stringify(scores));
+    localStorage.setItem('oonari_vbc_xmas_v5', JSON.stringify(scores));
   }, [scores]);
 
-  // ランキング計算
   const rankings = useMemo(() => {
     const totals = TEAMS.map(team => {
       const total = scores
@@ -67,7 +63,6 @@ const App = () => {
     return totals.sort((a, b) => b.totalScore - a.totalScore).map((t, i) => ({ ...t, rank: i + 1 }));
   }, [scores]);
 
-  // スコア更新
   const updateScore = (teamId: string, gameId: string, roundIdx: number, pts: number) => {
     setScores(prev => {
       const filtered = prev.filter(s => !(s.teamId === teamId && s.gameId === gameId && s.roundIndex === roundIdx));
@@ -79,7 +74,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen pb-24 flex flex-col">
-      {/* ヘッダー */}
       <header className="christmas-gradient text-white p-6 shadow-xl relative overflow-hidden shrink-0">
         <div className="absolute top-[-10px] right-[-10px] text-white/10 text-8xl rotate-12 animate-bounce-subtle">🎄</div>
         <div className="relative z-10">
@@ -93,9 +87,9 @@ const App = () => {
       <main className="p-4 max-w-md mx-auto w-full flex-grow">
         {activeTab === 'leaderboard' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-5 shadow-md border border-red-50">
-              <h2 className="text-xs font-black text-red-600 mb-3 uppercase flex items-center gap-2">
-                <i className="fas fa-crown"></i> リアルタイム・ランキング
+            <div className="bg-white rounded-2xl p-5 shadow-md border border-red-50 text-center">
+              <h2 className="text-xs font-black text-red-600 mb-3 uppercase flex items-center justify-center gap-2">
+                <i className="fas fa-crown"></i> 現在のランキング
               </h2>
               <RankingChart rankings={rankings} />
             </div>
@@ -104,8 +98,8 @@ const App = () => {
               {rankings.map((team, i) => {
                 const teamInfo = TEAMS.find(t => t.id === team.teamId)!;
                 return (
-                  <div key={team.teamId} className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-gray-100 transition-transform active:scale-95">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black mr-4 text-lg ${i === 0 ? 'bg-yellow-400 text-white shadow-lg scale-110' : 'bg-gray-100 text-gray-400'}`}>
+                  <div key={team.teamId} className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-gray-100">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black mr-4 text-lg ${i === 0 ? 'bg-yellow-400 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}>
                       {team.rank}
                     </div>
                     <div className="flex-grow">
@@ -113,12 +107,12 @@ const App = () => {
                       <div className="h-2 w-full bg-gray-100 rounded-full mt-2 overflow-hidden">
                         <div 
                           className={`${teamInfo.color} h-full transition-all duration-1000`} 
-                          style={{width: `${(team.totalScore / (rankings[0].totalScore || 1)) * 100}%`}}
+                          style={{width: `${(team.totalScore / (Math.max(rankings[0].totalScore, 1))) * 100}%`}}
                         ></div>
                       </div>
                     </div>
-                    <div className="text-2xl font-black ml-4 text-gray-800">
-                      {team.totalScore}<span className="text-xs ml-1 opacity-40">pt</span>
+                    <div className="text-2xl font-black ml-4 text-gray-800 leading-none">
+                      {team.totalScore}<span className="text-xs ml-1 opacity-40 font-normal">pt</span>
                     </div>
                   </div>
                 );
@@ -143,15 +137,15 @@ const App = () => {
 
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-50">
               <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
-                <h3 className="font-black text-gray-800 text-lg flex items-center gap-2">
-                  <span className="text-2xl">{currentGame.icon}</span> {currentGame.name}
+                <h3 className="font-black text-gray-800 text-lg">
+                  {currentGame.icon} {currentGame.name}
                 </h3>
                 <div className="flex gap-1.5 bg-gray-50 p-1.5 rounded-xl">
                   {[...Array(currentGame.rounds)].map((_, i) => (
                     <button 
                       key={i} 
                       onClick={() => setSelectedRound(i)} 
-                      className={`w-9 h-9 rounded-lg text-xs font-black transition-all ${selectedRound === i ? 'bg-white text-red-600 shadow-md scale-110 ring-1 ring-gray-100' : 'text-gray-300'}`}
+                      className={`w-9 h-9 rounded-lg text-xs font-black transition-all ${selectedRound === i ? 'bg-white text-red-600 shadow-md scale-110' : 'text-gray-300'}`}
                     >
                       {i + 1}
                     </button>
@@ -164,7 +158,7 @@ const App = () => {
                   const current = scores.find(s => s.teamId === team.id && s.gameId === currentGame.id && s.roundIndex === selectedRound);
                   const pts = current ? current.points : null;
                   return (
-                    <div key={team.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all hover:bg-gray-50">
+                    <div key={team.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
                       <div className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
                         <div className={`w-2 h-2 rounded-full ${team.color}`}></div> {team.name}
                       </div>
@@ -188,8 +182,8 @@ const App = () => {
                             onClick={() => updateScore(team.id, currentGame.id, selectedRound, pts === 10 ? 0 : 10)} 
                             className={`w-full py-4 rounded-xl text-sm font-black border-2 flex items-center justify-center gap-3 transition-all ${pts === 10 ? 'bg-green-600 text-white border-green-600 shadow-lg' : 'bg-white text-gray-300 border-gray-100 active:bg-gray-100'}`}
                           >
-                            <i className={pts === 10 ? "fas fa-check-circle text-xl" : "far fa-circle text-xl"}></i>
-                            {pts === 10 ? '正解済み (+10pt)' : '未達成 / 挑戦中'}
+                            <i className={pts === 10 ? "fas fa-check-circle" : "far fa-circle"}></i>
+                            {pts === 10 ? '正解済み (+10pt)' : '未入力 / 挑戦中'}
                           </button>
                         )}
                       </div>
@@ -206,15 +200,12 @@ const App = () => {
             <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fas fa-trash-alt text-3xl"></i>
             </div>
-            <div className="px-6">
-              <h3 className="font-black text-gray-800 text-lg mb-2">得点のリセット</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">これまでに記録したすべての得点が消去されます。</p>
-            </div>
+            <h3 className="font-black text-gray-800 text-lg">全データのリセット</h3>
             <button 
-              onClick={() => { if(confirm("本当にリセットしますか？")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
+              onClick={() => { if(confirm("全データを消去しますか？")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
               className="mx-6 px-10 py-5 bg-red-600 text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all"
             >
-              全データをリセット
+              初期化を実行する
             </button>
           </div>
         )}
@@ -238,5 +229,8 @@ const App = () => {
   );
 };
 
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<App />);
+const rootEl = document.getElementById('root');
+if (rootEl) {
+  const root = ReactDOM.createRoot(rootEl);
+  root.render(<App />);
+}
