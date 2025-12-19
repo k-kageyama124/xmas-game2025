@@ -8,7 +8,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
     
-    <!-- Babel Standalone: JSXをブラウザで変換 -->
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
@@ -32,6 +36,35 @@
         .animate-bounce-subtle {
           animation: bounce-subtle 2s infinite ease-in-out;
         }
+        
+        /* リアルタイム接続インジケーター */
+        .connection-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 100;
+        }
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .connected { background: #10b981; }
+        .disconnected { background: #ef4444; animation: none; }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
     </style>
     
     <script type="importmap">
@@ -46,10 +79,25 @@
 <body>
     <div id="root"></div>
     
-    <!-- 重要: type="text/babel" と data-type="module" -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useMemo } from 'react';
         import ReactDOM from 'react-dom/client';
+
+        // Firebase初期化
+        const firebaseConfig = {
+          apiKey: "AIzaSyCF3oQ9DjgiGCMitFgDUzxzzIQ_mQf-zEY",
+          authDomain: "xmas-game-2025.firebaseapp.com",
+          databaseURL: "https://xmas-game-2025-default-rtdb.firebaseio.com",
+          projectId: "xmas-game-2025",
+          storageBucket: "xmas-game-2025.firebasestorage.app",
+          messagingSenderId: "532428555172",
+          appId: "1:532428555172:web:495a09b40c00268bc0b731",
+          measurementId: "G-VN96NNS06F"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const scoresRef = database.ref('scores');
 
         // --- 設定データ ---
         const TEAMS = [
@@ -93,15 +141,32 @@
           const [activeTab, setActiveTab] = useState('leaderboard');
           const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
           const [selectedRound, setSelectedRound] = useState(0);
+          const [isConnected, setIsConnected] = useState(false);
 
+          // Firebase接続状態の監視
           useEffect(() => {
-            const saved = localStorage.getItem('oonari_vbc_xmas_v5');
-            if (saved) setScores(JSON.parse(saved));
+            const connectedRef = database.ref('.info/connected');
+            connectedRef.on('value', (snap) => {
+              setIsConnected(snap.val() === true);
+            });
+            return () => connectedRef.off();
           }, []);
 
+          // Firebaseからリアルタイムでデータを取得
           useEffect(() => {
-            localStorage.setItem('oonari_vbc_xmas_v5', JSON.stringify(scores));
-          }, [scores]);
+            const unsubscribe = scoresRef.on('value', (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                // オブジェクトを配列に変換
+                const scoresArray = Object.keys(data).map(key => data[key]);
+                setScores(scoresArray);
+              } else {
+                setScores([]);
+              }
+            });
+
+            return () => scoresRef.off('value', unsubscribe);
+          }, []);
 
           const rankings = useMemo(() => {
             const totals = TEAMS.map(team => {
@@ -114,16 +179,42 @@
           }, [scores]);
 
           const updateScore = (teamId, gameId, roundIdx, pts) => {
-            setScores(prev => {
-              const filtered = prev.filter(s => !(s.teamId === teamId && s.gameId === gameId && s.roundIndex === roundIdx));
-              return [...filtered, { teamId, gameId, roundIndex: roundIdx, points: pts }];
+            // ユニークキーを生成
+            const scoreKey = `${teamId}_${gameId}_${roundIdx}`;
+            
+            // Firebaseに保存
+            scoresRef.child(scoreKey).set({
+              teamId,
+              gameId,
+              roundIndex: roundIdx,
+              points: pts,
+              timestamp: Date.now()
             });
+          };
+
+          const resetAllData = () => {
+            if (confirm("全データを消去しますか?")) {
+              scoresRef.remove().then(() => {
+                setActiveTab('leaderboard');
+                alert('データをリセットしました');
+              }).catch((error) => {
+                alert('エラーが発生しました: ' + error.message);
+              });
+            }
           };
 
           const currentGame = GAMES.find(g => g.id === selectedGameId);
 
           return (
             <div className="min-h-screen pb-24 flex flex-col">
+              {/* 接続状態インジケーター */}
+              <div className="connection-indicator">
+                <div className={`connection-dot ${isConnected ? 'connected' : 'disconnected'}`}></div>
+                <span style={{ color: isConnected ? '#10b981' : '#ef4444' }}>
+                  {isConnected ? 'オンライン' : 'オフライン'}
+                </span>
+              </div>
+
               <header className="christmas-gradient text-white p-6 shadow-xl relative overflow-hidden shrink-0">
                 <div className="absolute top-[-10px] right-[-10px] text-white/10 text-8xl rotate-12 animate-bounce-subtle">🎄</div>
                 <div className="relative z-10">
@@ -252,7 +343,7 @@
                     </div>
                     <h3 className="font-black text-gray-800 text-lg">全データのリセット</h3>
                     <button 
-                      onClick={() => { if(confirm("全データを消去しますか?")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
+                      onClick={resetAllData}
                       className="mx-6 px-10 py-5 bg-red-600 text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all"
                     >
                       初期化を実行する
@@ -287,4 +378,3 @@
     </script>
 </body>
 </html>
-
