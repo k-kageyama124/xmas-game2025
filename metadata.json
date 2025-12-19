@@ -1,0 +1,6 @@
+
+{
+  "name": "Volleyball Club Christmas Scoreboard",
+  "description": "A festive web application for managing scores and tracking rankings during a volleyball club's Christmas recreation event. Data is saved locally in the browser.",
+  "requestFramePermissions": []
+}
