@@ -45,14 +45,13 @@ const App = () => {
   const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
   const [selectedRound, setSelectedRound] = useState(0);
 
-  // ローカルストレージ保存（キーを変更して確実にリフレッシュ）
   useEffect(() => {
-    const saved = localStorage.getItem('oonari_vbc_xmas_final');
+    const saved = localStorage.getItem('oonari_vbc_xmas_final_v2');
     if (saved) setScores(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('oonari_vbc_xmas_final', JSON.stringify(scores));
+    localStorage.setItem('oonari_vbc_xmas_final_v2', JSON.stringify(scores));
   }, [scores]);
 
   const rankings = useMemo(() => {
@@ -76,19 +75,18 @@ const App = () => {
 
   return (
     <div className="min-h-screen pb-24 flex flex-col">
-      {/* ヘッダー：クラブ名を修正 */}
+      {/* ヘッダー：クラブ名を「おおなり」に修正 */}
       <header className="christmas-gradient text-white p-6 shadow-xl relative overflow-hidden shrink-0">
         <div className="absolute top-[-10px] right-[-10px] text-white/10 text-8xl rotate-12 animate-bounce-subtle">🎄</div>
         <div className="relative z-10">
           <p className="text-[10px] font-black opacity-80 tracking-widest mb-1 uppercase">OONARI JR VOLLEYBALL CLUB</p>
           <h1 className="text-2xl font-black flex items-center gap-2">
-            <span className="text-3xl">🎅</span> クリスマス会 得点王
+            <span className="text-3xl">🎅</span> おおなり クリスマス会
           </h1>
         </div>
       </header>
 
       <main className="p-4 max-w-md mx-auto w-full flex-grow">
-        {/* 順位表タブ */}
         {activeTab === 'leaderboard' && (
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-5 shadow-md border border-red-50">
@@ -125,10 +123,8 @@ const App = () => {
           </div>
         )}
 
-        {/* 入力タブ */}
         {activeTab === 'input' && (
           <div className="space-y-4">
-            {/* ゲーム選択 */}
             <div className="flex gap-2 overflow-x-auto scrollbar-hide py-2">
               {GAMES.map(g => (
                 <button 
@@ -201,7 +197,6 @@ const App = () => {
           </div>
         )}
 
-        {/* 設定タブ */}
         {activeTab === 'admin' && (
           <div className="space-y-6 pt-10 text-center">
             <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -215,33 +210,32 @@ const App = () => {
               onClick={() => { if(confirm("本当にリセットしますか？")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
               className="mx-6 px-10 py-5 bg-red-600 text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all"
             >
-              データをリセット
+              全データをリセット
             </button>
           </div>
         )}
       </main>
 
-      {/* ナビゲーション */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-white rounded-3xl flex items-center justify-center p-2 z-50 shadow-2xl w-[90%] max-sm:max-w-[320px]">
         <button 
           onClick={() => setActiveTab('leaderboard')} 
           className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'leaderboard' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300'}`}
         >
-          <i className="fas fa-trophy"></i>
+          <i className="fas fa-trophy text-lg"></i>
           <span className="text-[9px] font-black mt-1">順位</span>
         </button>
         <button 
           onClick={() => setActiveTab('input')} 
           className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'input' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-300'}`}
         >
-          <i className="fas fa-edit"></i>
+          <i className="fas fa-edit text-lg"></i>
           <span className="text-[9px] font-black mt-1">入力</span>
         </button>
         <button 
           onClick={() => setActiveTab('admin')} 
           className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'admin' ? 'bg-gray-800 text-white shadow-lg' : 'text-gray-300'}`}
         >
-          <i className="fas fa-cog"></i>
+          <i className="fas fa-cog text-lg"></i>
           <span className="text-[9px] font-black mt-1">設定</span>
         </button>
       </nav>
