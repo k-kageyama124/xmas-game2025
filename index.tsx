@@ -3,10 +3,10 @@ import ReactDOM from 'react-dom/client';
 
 // --- 設定データ ---
 const TEAMS = [
-  { id: 'team-red', name: '赤チーム', color: 'bg-red-500' },
-  { id: 'team-blue', name: '青チーム', color: 'bg-blue-500' },
-  { id: 'team-yellow', name: '黄チーム', color: 'bg-yellow-400' },
-  { id: 'team-green', name: '緑チーム', color: 'bg-green-500' },
+  { id: 'team-red', name: '赤チーム', color: 'bg-red-500', hex: '#ef4444' },
+  { id: 'team-blue', name: '青チーム', color: 'bg-blue-500', hex: '#3b82f6' },
+  { id: 'team-yellow', name: '黄チーム', color: 'bg-yellow-400', hex: '#facc15' },
+  { id: 'team-green', name: '緑チーム', color: 'bg-green-500', hex: '#22c55e' },
 ];
 
 const GAMES = [
@@ -16,23 +16,22 @@ const GAMES = [
   { id: 'game-relay', name: 'リレー', icon: '🏃', rounds: 2, type: 'ranking-40' },
 ];
 
-// --- 簡易グラフコンポーネント ---
-const SimpleChart = ({ rankings }: { rankings: any[] }) => {
+// --- 順位表のバーグラフ ---
+const RankingChart = ({ rankings }: { rankings: any[] }) => {
   const max = Math.max(...rankings.map(d => d.totalScore), 1);
   return (
-    <div className="flex items-end justify-around h-40 pt-8 pb-2 px-2">
+    <div className="flex items-end justify-around h-32 pt-6 pb-2 px-4 bg-white/50 rounded-xl">
       {TEAMS.map(team => {
-        const scoreData = rankings.find(r => r.teamId === team.id);
-        const total = scoreData ? scoreData.totalScore : 0;
-        const height = (total / max) * 100;
+        const score = rankings.find(r => r.teamId === team.id)?.totalScore || 0;
+        const height = (score / max) * 100;
         return (
           <div key={team.id} className="flex flex-col items-center flex-1">
-            <div className="text-[10px] font-black mb-1 text-gray-700">{total}</div>
+            <div className="text-[10px] font-black mb-1 text-gray-800">{score}</div>
             <div 
-              className={`${team.color} w-full max-w-[24px] rounded-t-md transition-all duration-700`}
+              className={`${team.color} w-full max-w-[20px] rounded-t-sm shadow-sm transition-all duration-1000 ease-out`}
               style={{ height: `${height}%`, minHeight: '4px' }}
             ></div>
-            <div className="text-[10px] mt-2 font-bold text-gray-400">{team.name.replace('チーム','')}</div>
+            <div className="text-[9px] mt-2 font-bold text-gray-500">{team.name.replace('チーム','')}</div>
           </div>
         );
       })}
@@ -46,13 +45,14 @@ const App = () => {
   const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
   const [selectedRound, setSelectedRound] = useState(0);
 
+  // ローカルストレージ保存（キーを変更して確実にリフレッシュ）
   useEffect(() => {
-    const saved = localStorage.getItem('vball_xmas_v3');
+    const saved = localStorage.getItem('oonari_vbc_xmas_final');
     if (saved) setScores(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('vball_xmas_v3', JSON.stringify(scores));
+    localStorage.setItem('oonari_vbc_xmas_final', JSON.stringify(scores));
   }, [scores]);
 
   const rankings = useMemo(() => {
@@ -75,57 +75,84 @@ const App = () => {
   const currentGame = GAMES.find(g => g.id === selectedGameId)!;
 
   return (
-    <div className="min-h-screen pb-20 bg-gray-50 flex flex-col">
-      <header className="christmas-gradient text-white p-5 shadow-lg flex justify-between items-center">
-        <div>
-          <p className="text-[10px] font-black opacity-70 tracking-widest">TAISEI JR VBC</p>
-          <h1 className="text-xl font-black">🎄 得点表</h1>
+    <div className="min-h-screen pb-24 flex flex-col">
+      {/* ヘッダー：クラブ名を修正 */}
+      <header className="christmas-gradient text-white p-6 shadow-xl relative overflow-hidden shrink-0">
+        <div className="absolute top-[-10px] right-[-10px] text-white/10 text-8xl rotate-12 animate-bounce-subtle">🎄</div>
+        <div className="relative z-10">
+          <p className="text-[10px] font-black opacity-80 tracking-widest mb-1 uppercase">OONARI JR VOLLEYBALL CLUB</p>
+          <h1 className="text-2xl font-black flex items-center gap-2">
+            <span className="text-3xl">🎅</span> クリスマス会 得点王
+          </h1>
         </div>
-        <i className="fas fa-volleyball-ball text-xl opacity-50"></i>
       </header>
 
       <main className="p-4 max-w-md mx-auto w-full flex-grow">
+        {/* 順位表タブ */}
         {activeTab === 'leaderboard' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <h2 className="text-xs font-black text-gray-400 mb-2 uppercase flex items-center gap-2">
-                <i className="fas fa-chart-bar text-red-500"></i> ポイント分布
+            <div className="bg-white rounded-2xl p-5 shadow-md border border-red-50">
+              <h2 className="text-xs font-black text-red-600 mb-3 uppercase flex items-center gap-2">
+                <i className="fas fa-crown"></i> リアルタイム・ランキング
               </h2>
-              <SimpleChart rankings={rankings} />
+              <RankingChart rankings={rankings} />
             </div>
-            {rankings.map((team, i) => (
-              <div key={team.teamId} className="bg-white rounded-xl p-4 flex items-center shadow-sm">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black mr-4 ${i === 0 ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                  {team.rank}
-                </div>
-                <div className="flex-grow">
-                  <div className="text-sm font-black text-gray-700">{team.teamName}</div>
-                  <div className="h-1.5 w-full bg-gray-100 rounded-full mt-2">
-                    <div className={`${TEAMS.find(t => t.id === team.teamId)?.color} h-full transition-all`} style={{width: `${(team.totalScore / (rankings[0].totalScore || 1)) * 100}%`}}></div>
+
+            <div className="space-y-3">
+              {rankings.map((team, i) => {
+                const teamInfo = TEAMS.find(t => t.id === team.teamId)!;
+                return (
+                  <div key={team.teamId} className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-gray-100 transition-transform active:scale-95">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black mr-4 text-lg ${i === 0 ? 'bg-yellow-400 text-white shadow-lg scale-110' : 'bg-gray-100 text-gray-400'}`}>
+                      {team.rank}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="text-sm font-black text-gray-700">{team.teamName}</div>
+                      <div className="h-2 w-full bg-gray-100 rounded-full mt-2 overflow-hidden">
+                        <div 
+                          className={`${teamInfo.color} h-full transition-all duration-1000`} 
+                          style={{width: `${(team.totalScore / (rankings[0].totalScore || 1)) * 100}%`}}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black ml-4 text-gray-800">
+                      {team.totalScore}<span className="text-xs ml-1 opacity-40">pt</span>
+                    </div>
                   </div>
-                </div>
-                <div className="text-xl font-black ml-4 text-gray-800">{team.totalScore}pt</div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         )}
 
+        {/* 入力タブ */}
         {activeTab === 'input' && (
           <div className="space-y-4">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1">
+            {/* ゲーム選択 */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-2">
               {GAMES.map(g => (
-                <button key={g.id} onClick={() => {setSelectedGameId(g.id); setSelectedRound(0);}} className={`px-4 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all ${selectedGameId === g.id ? 'bg-green-600 text-white shadow-md' : 'bg-white text-gray-400 border border-gray-200'}`}>
+                <button 
+                  key={g.id} 
+                  onClick={() => {setSelectedGameId(g.id); setSelectedRound(0);}} 
+                  className={`px-5 py-3 rounded-2xl text-xs font-black whitespace-nowrap transition-all shadow-sm ${selectedGameId === g.id ? 'bg-red-600 text-white shadow-red-200 ring-4 ring-red-100' : 'bg-white text-gray-400 border border-gray-100'}`}
+                >
                   {g.icon} {g.name}
                 </button>
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-black text-gray-800">{currentGame.name}</h3>
-                <div className="flex gap-1">
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-50">
+              <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
+                <h3 className="font-black text-gray-800 text-lg flex items-center gap-2">
+                  <span className="text-2xl">{currentGame.icon}</span> {currentGame.name}
+                </h3>
+                <div className="flex gap-1.5 bg-gray-50 p-1.5 rounded-xl">
                   {[...Array(currentGame.rounds)].map((_, i) => (
-                    <button key={i} onClick={() => setSelectedRound(i)} className={`w-8 h-8 rounded-lg text-xs font-black ${selectedRound === i ? 'bg-green-100 text-green-700' : 'text-gray-300 bg-gray-50'}`}>
+                    <button 
+                      key={i} 
+                      onClick={() => setSelectedRound(i)} 
+                      className={`w-9 h-9 rounded-lg text-xs font-black transition-all ${selectedRound === i ? 'bg-white text-red-600 shadow-md scale-110 ring-1 ring-gray-100' : 'text-gray-300'}`}
+                    >
                       {i + 1}
                     </button>
                   ))}
@@ -137,22 +164,32 @@ const App = () => {
                   const current = scores.find(s => s.teamId === team.id && s.gameId === currentGame.id && s.roundIndex === selectedRound);
                   const pts = current ? current.points : null;
                   return (
-                    <div key={team.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="text-[10px] font-black text-gray-400 mb-2">{team.name}</div>
-                      <div className="flex gap-1">
+                    <div key={team.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all hover:bg-gray-50">
+                      <div className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                        <div className={`w-2 h-2 rounded-full ${team.color}`}></div> {team.name}
+                      </div>
+                      <div className="flex gap-2">
                         {currentGame.type.startsWith('ranking') ? (
                           [1, 2, 3, 4].map(rank => {
                             const p = currentGame.type === 'ranking-40' ? [40, 30, 20, 10][rank - 1] : [30, 20, 10, 0][rank - 1];
                             const isActive = pts === p && current;
                             return (
-                              <button key={rank} onClick={() => updateScore(team.id, currentGame.id, selectedRound, p)} className={`flex-1 py-2 rounded-lg text-xs font-black border ${isActive ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200'}`}>
+                              <button 
+                                key={rank} 
+                                onClick={() => updateScore(team.id, currentGame.id, selectedRound, p)} 
+                                className={`flex-1 py-3 rounded-xl text-xs font-black border-2 transition-all ${isActive ? 'bg-gray-800 text-white border-gray-800 shadow-lg' : 'bg-white text-gray-400 border-gray-100 active:bg-gray-100'}`}
+                              >
                                 {rank}位
                               </button>
                             );
                           })
                         ) : (
-                          <button onClick={() => updateScore(team.id, currentGame.id, selectedRound, pts === 10 ? 0 : 10)} className={`w-full py-2 rounded-lg text-xs font-black border ${pts === 10 ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-300 border-gray-200'}`}>
-                            {pts === 10 ? '✅ 成功(10pt)' : '未達成'}
+                          <button 
+                            onClick={() => updateScore(team.id, currentGame.id, selectedRound, pts === 10 ? 0 : 10)} 
+                            className={`w-full py-4 rounded-xl text-sm font-black border-2 flex items-center justify-center gap-3 transition-all ${pts === 10 ? 'bg-green-600 text-white border-green-600 shadow-lg' : 'bg-white text-gray-300 border-gray-100 active:bg-gray-100'}`}
+                          >
+                            <i className={pts === 10 ? "fas fa-check-circle text-xl" : "far fa-circle text-xl"}></i>
+                            {pts === 10 ? '正解済み (+10pt)' : '未達成 / 挑戦中'}
                           </button>
                         )}
                       </div>
@@ -164,24 +201,48 @@ const App = () => {
           </div>
         )}
 
+        {/* 設定タブ */}
         {activeTab === 'admin' && (
-          <div className="p-10 text-center">
-            <button onClick={() => { if(confirm("リセットしますか？")) { setScores([]); localStorage.clear(); }}} className="bg-red-600 text-white px-8 py-4 rounded-xl font-black shadow-lg">
-              データを全削除
+          <div className="space-y-6 pt-10 text-center">
+            <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="fas fa-trash-alt text-3xl"></i>
+            </div>
+            <div className="px-6">
+              <h3 className="font-black text-gray-800 text-lg mb-2">得点のリセット</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">これまでに記録したすべての得点が消去されます。</p>
+            </div>
+            <button 
+              onClick={() => { if(confirm("本当にリセットしますか？")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
+              className="mx-6 px-10 py-5 bg-red-600 text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all"
+            >
+              データをリセット
             </button>
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around p-2 z-50">
-        <button onClick={() => setActiveTab('leaderboard')} className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'leaderboard' ? 'text-red-600' : 'text-gray-300'}`}>
-          <i className="fas fa-trophy"></i><span className="text-[10px] font-black mt-1">順位</span>
+      {/* ナビゲーション */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-white rounded-3xl flex items-center justify-center p-2 z-50 shadow-2xl w-[90%] max-sm:max-w-[320px]">
+        <button 
+          onClick={() => setActiveTab('leaderboard')} 
+          className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'leaderboard' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300'}`}
+        >
+          <i className="fas fa-trophy"></i>
+          <span className="text-[9px] font-black mt-1">順位</span>
         </button>
-        <button onClick={() => setActiveTab('input')} className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'input' ? 'text-green-600' : 'text-gray-300'}`}>
-          <i className="fas fa-edit"></i><span className="text-[10px] font-black mt-1">入力</span>
+        <button 
+          onClick={() => setActiveTab('input')} 
+          className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'input' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-300'}`}
+        >
+          <i className="fas fa-edit"></i>
+          <span className="text-[9px] font-black mt-1">入力</span>
         </button>
-        <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'admin' ? 'text-gray-800' : 'text-gray-300'}`}>
-          <i className="fas fa-cog"></i><span className="text-[10px] font-black mt-1">設定</span>
+        <button 
+          onClick={() => setActiveTab('admin')} 
+          className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'admin' ? 'bg-gray-800 text-white shadow-lg' : 'text-gray-300'}`}
+        >
+          <i className="fas fa-cog"></i>
+          <span className="text-[9px] font-black mt-1">設定</span>
         </button>
       </nav>
     </div>
