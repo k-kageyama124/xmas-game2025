@@ -16,7 +16,7 @@ const GAMES = [
   { id: 'game-relay', name: 'リレー', icon: '🏃', rounds: 2, type: 'ranking-40' },
 ];
 
-const RankingChart = ({ rankings }: { rankings: any[] }) => {
+const RankingChart = ({ rankings }) => {
   const max = Math.max(...rankings.map(d => d.totalScore), 1);
   return (
     <div className="flex items-end justify-around h-32 pt-6 pb-2 px-4 bg-white/50 rounded-xl">
@@ -39,7 +39,7 @@ const RankingChart = ({ rankings }: { rankings: any[] }) => {
 };
 
 const App = () => {
-  const [scores, setScores] = useState<any[]>([]);
+  const [scores, setScores] = useState([]);
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
   const [selectedRound, setSelectedRound] = useState(0);
@@ -63,14 +63,14 @@ const App = () => {
     return totals.sort((a, b) => b.totalScore - a.totalScore).map((t, i) => ({ ...t, rank: i + 1 }));
   }, [scores]);
 
-  const updateScore = (teamId: string, gameId: string, roundIdx: number, pts: number) => {
+  const updateScore = (teamId, gameId, roundIdx, pts) => {
     setScores(prev => {
       const filtered = prev.filter(s => !(s.teamId === teamId && s.gameId === gameId && s.roundIndex === roundIdx));
       return [...filtered, { teamId, gameId, roundIndex: roundIdx, points: pts }];
     });
   };
 
-  const currentGame = GAMES.find(g => g.id === selectedGameId)!;
+  const currentGame = GAMES.find(g => g.id === selectedGameId);
 
   return (
     <div className="min-h-screen pb-24 flex flex-col">
@@ -96,7 +96,7 @@ const App = () => {
 
             <div className="space-y-3">
               {rankings.map((team, i) => {
-                const teamInfo = TEAMS.find(t => t.id === team.teamId)!;
+                const teamInfo = TEAMS.find(t => t.id === team.teamId);
                 return (
                   <div key={team.teamId} className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-gray-100">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black mr-4 text-lg ${i === 0 ? 'bg-yellow-400 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}>
@@ -202,7 +202,7 @@ const App = () => {
             </div>
             <h3 className="font-black text-gray-800 text-lg">全データのリセット</h3>
             <button 
-              onClick={() => { if(confirm("全データを消去しますか？")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
+              onClick={() => { if(confirm("全データを消去しますか?")) { setScores([]); localStorage.clear(); setActiveTab('leaderboard'); }}} 
               className="mx-6 px-10 py-5 bg-red-600 text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all"
             >
               初期化を実行する
