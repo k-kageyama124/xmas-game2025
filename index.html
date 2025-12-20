@@ -98,37 +98,52 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const scoresRef = database.ref('scores');
+        const teamNamesRef = database.ref('teamNames');
 
-        // --- 設定データ ---
-        const TEAMS = [
-          { id: 'team-red', name: '赤チーム', color: 'bg-red-500' },
-          { id: 'team-blue', name: '青チーム', color: 'bg-blue-500' },
-          { id: 'team-yellow', name: '黄チーム', color: 'bg-yellow-400' },
-          { id: 'team-green', name: '緑チーム', color: 'bg-green-500' },
+        // --- 設定データ (8チーム) ---
+        const DEFAULT_TEAMS = [
+          { id: 'team-1', defaultName: 'チーム1', color: 'bg-red-500', relayGroup: 'group-red' },
+          { id: 'team-2', defaultName: 'チーム2', color: 'bg-red-500', relayGroup: 'group-red' },
+          { id: 'team-3', defaultName: 'チーム3', color: 'bg-blue-500', relayGroup: 'group-blue' },
+          { id: 'team-4', defaultName: 'チーム4', color: 'bg-blue-500', relayGroup: 'group-blue' },
+          { id: 'team-5', defaultName: 'チーム5', color: 'bg-yellow-400', relayGroup: 'group-yellow' },
+          { id: 'team-6', defaultName: 'チーム6', color: 'bg-yellow-400', relayGroup: 'group-yellow' },
+          { id: 'team-7', defaultName: 'チーム7', color: 'bg-green-500', relayGroup: 'group-green' },
+          { id: 'team-8', defaultName: 'チーム8', color: 'bg-green-500', relayGroup: 'group-green' },
+        ];
+
+        const RELAY_GROUPS = [
+          { id: 'group-red', name: '赤グループ', color: 'bg-red-500', teamIds: ['team-1', 'team-2'] },
+          { id: 'group-blue', name: '青グループ', color: 'bg-blue-500', teamIds: ['team-3', 'team-4'] },
+          { id: 'group-yellow', name: '黄グループ', color: 'bg-yellow-400', teamIds: ['team-5', 'team-6'] },
+          { id: 'group-green', name: '緑グループ', color: 'bg-green-500', teamIds: ['team-7', 'team-8'] },
         ];
 
         const GAMES = [
           { id: 'game-dengon', name: '伝言ゲーム', icon: '🗣️', rounds: 5, type: 'ranking-30' },
           { id: 'game-visual', name: '動体視力', icon: '👁️', rounds: 5, type: 'ranking-30' },
           { id: 'game-gesture', name: 'ジェスチャー', icon: '🎭', rounds: 6, type: 'success-10' },
-          { id: 'game-relay', name: 'リレー', icon: '🏃', rounds: 2, type: 'ranking-40' },
+          { id: 'game-relay', name: 'リレー', icon: '🏃', rounds: 2, type: 'ranking-40-relay' },
         ];
 
-        const RankingChart = ({ rankings }) => {
+        const RankingChart = ({ rankings, teams }) => {
           const max = Math.max(...rankings.map(d => d.totalScore), 1);
           return (
-            <div className="flex items-end justify-around h-32 pt-6 pb-2 px-4 bg-white/50 rounded-xl">
-              {TEAMS.map(team => {
-                const score = rankings.find(r => r.teamId === team.id)?.totalScore || 0;
+            <div className="flex items-end justify-around h-32 pt-6 pb-2 px-2 bg-white/50 rounded-xl overflow-x-auto">
+              {rankings.map(team => {
+                const teamInfo = teams.find(t => t.id === team.teamId);
+                const score = team.totalScore;
                 const height = (score / max) * 100;
                 return (
-                  <div key={team.id} className="flex flex-col items-center flex-1">
-                    <div className="text-[10px] font-black mb-1 text-gray-800">{score}</div>
+                  <div key={team.teamId} className="flex flex-col items-center flex-1 min-w-[40px]">
+                    <div className="text-[9px] font-black mb-1 text-gray-800">{score}</div>
                     <div 
-                      className={`${team.color} w-full max-w-[20px] rounded-t-sm shadow-sm transition-all duration-1000 ease-out`}
+                      className={`${teamInfo.color} w-full max-w-[16px] rounded-t-sm shadow-sm transition-all duration-1000 ease-out`}
                       style={{ height: `${height}%`, minHeight: '4px' }}
                     ></div>
-                    <div className="text-[9px] mt-2 font-bold text-gray-500">{team.name.replace('チーム','')}</div>
+                    <div className="text-[8px] mt-2 font-bold text-gray-500 truncate w-full text-center px-1">
+                      {teamInfo.name.length > 6 ? teamInfo.name.substring(0, 5) + '...' : teamInfo.name}
+                    </div>
                   </div>
                 );
               })}
@@ -138,10 +153,21 @@
 
         const App = () => {
           const [scores, setScores] = useState([]);
+          const [teamNames, setTeamNames] = useState({});
           const [activeTab, setActiveTab] = useState('leaderboard');
           const [selectedGameId, setSelectedGameId] = useState(GAMES[0].id);
           const [selectedRound, setSelectedRound] = useState(0);
           const [isConnected, setIsConnected] = useState(false);
+          const [editingTeamId, setEditingTeamId] = useState(null);
+          const [editingName, setEditingName] = useState('');
+
+          // チーム情報の統合
+          const teams = useMemo(() => {
+            return DEFAULT_TEAMS.map(team => ({
+              ...team,
+              name: teamNames[team.id] || team.defaultName
+            }));
+          }, [teamNames]);
 
           // Firebase接続状態の監視
           useEffect(() => {
@@ -152,37 +178,43 @@
             return () => connectedRef.off();
           }, []);
 
-          // Firebaseからリアルタイムでデータを取得
+          // チーム名をFirebaseから取得
+          useEffect(() => {
+            const unsubscribe = teamNamesRef.on('value', (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                setTeamNames(data);
+              }
+            });
+            return () => teamNamesRef.off('value', unsubscribe);
+          }, []);
+
+          // Firebaseからリアルタイムでスコアデータを取得
           useEffect(() => {
             const unsubscribe = scoresRef.on('value', (snapshot) => {
               const data = snapshot.val();
               if (data) {
-                // オブジェクトを配列に変換
                 const scoresArray = Object.keys(data).map(key => data[key]);
                 setScores(scoresArray);
               } else {
                 setScores([]);
               }
             });
-
             return () => scoresRef.off('value', unsubscribe);
           }, []);
 
           const rankings = useMemo(() => {
-            const totals = TEAMS.map(team => {
+            const totals = teams.map(team => {
               const total = scores
                 .filter(s => s.teamId === team.id)
                 .reduce((sum, s) => sum + s.points, 0);
               return { teamId: team.id, teamName: team.name, totalScore: total };
             });
             return totals.sort((a, b) => b.totalScore - a.totalScore).map((t, i) => ({ ...t, rank: i + 1 }));
-          }, [scores]);
+          }, [scores, teams]);
 
           const updateScore = (teamId, gameId, roundIdx, pts) => {
-            // ユニークキーを生成
             const scoreKey = `${teamId}_${gameId}_${roundIdx}`;
-            
-            // Firebaseに保存
             scoresRef.child(scoreKey).set({
               teamId,
               gameId,
@@ -190,6 +222,25 @@
               points: pts,
               timestamp: Date.now()
             });
+          };
+
+          // リレーのグループ順位に基づいて個別チームに得点を付与
+          const updateRelayScore = (groupId, roundIdx, rank) => {
+            const group = RELAY_GROUPS.find(g => g.id === groupId);
+            const points = [40, 30, 20, 10][rank - 1];
+            
+            // そのグループの2チームに同じ得点を付与
+            group.teamIds.forEach(teamId => {
+              updateScore(teamId, 'game-relay', roundIdx, points);
+            });
+          };
+
+          const updateTeamName = (teamId, newName) => {
+            if (newName.trim()) {
+              teamNamesRef.child(teamId).set(newName.trim());
+            }
+            setEditingTeamId(null);
+            setEditingName('');
           };
 
           const resetAllData = () => {
@@ -232,12 +283,12 @@
                       <h2 className="text-xs font-black text-red-600 mb-3 uppercase flex items-center justify-center gap-2">
                         <i className="fas fa-crown"></i> 現在のランキング
                       </h2>
-                      <RankingChart rankings={rankings} />
+                      <RankingChart rankings={rankings} teams={teams} />
                     </div>
 
                     <div className="space-y-3">
                       {rankings.map((team, i) => {
-                        const teamInfo = TEAMS.find(t => t.id === team.teamId);
+                        const teamInfo = teams.find(t => t.id === team.teamId);
                         return (
                           <div key={team.teamId} className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-gray-100">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black mr-4 text-lg ${i === 0 ? 'bg-yellow-400 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}>
@@ -294,44 +345,186 @@
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        {TEAMS.map(team => {
-                          const current = scores.find(s => s.teamId === team.id && s.gameId === currentGame.id && s.roundIndex === selectedRound);
-                          const pts = current ? current.points : null;
-                          return (
-                            <div key={team.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
-                              <div className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
-                                <div className={`w-2 h-2 rounded-full ${team.color}`}></div> {team.name}
-                              </div>
-                              <div className="flex gap-2">
-                                {currentGame.type.startsWith('ranking') ? (
-                                  [1, 2, 3, 4].map(rank => {
-                                    const p = currentGame.type === 'ranking-40' ? [40, 30, 20, 10][rank - 1] : [30, 20, 10, 0][rank - 1];
+                      {currentGame.type === 'ranking-40-relay' ? (
+                        // リレー用の入力(グループ単位)
+                        <div className="space-y-4">
+                          {RELAY_GROUPS.map(group => {
+                            const groupTeams = teams.filter(t => group.teamIds.includes(t.id));
+                            // グループ内のどちらかのチームのスコアを確認
+                            const current = scores.find(s => 
+                              group.teamIds.includes(s.teamId) && 
+                              s.gameId === currentGame.id && 
+                              s.roundIndex === selectedRound
+                            );
+                            const pts = current ? current.points : null;
+                            
+                            return (
+                              <div key={group.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                <div className="text-[10px] font-black text-gray-400 mb-2 flex items-center gap-2 uppercase tracking-widest">
+                                  <div className={`w-2 h-2 rounded-full ${group.color}`}></div> {group.name}
+                                </div>
+                                <div className="text-[9px] text-gray-500 mb-3 flex gap-2">
+                                  {groupTeams.map(t => (
+                                    <span key={t.id} className="bg-white px-2 py-1 rounded">
+                                      {t.name}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  {[1, 2, 3, 4].map(rank => {
+                                    const p = [40, 30, 20, 10][rank - 1];
                                     const isActive = pts === p && current;
                                     return (
                                       <button 
                                         key={rank} 
-                                        onClick={() => updateScore(team.id, currentGame.id, selectedRound, p)} 
+                                        onClick={() => updateRelayScore(group.id, selectedRound, rank)} 
                                         className={`flex-1 py-3 rounded-xl text-xs font-black border-2 transition-all ${isActive ? 'bg-gray-800 text-white border-gray-800 shadow-lg' : 'bg-white text-gray-400 border-gray-100 active:bg-gray-100'}`}
                                       >
                                         {rank}位
                                       </button>
                                     );
-                                  })
-                                ) : (
-                                  <button 
-                                    onClick={() => updateScore(team.id, currentGame.id, selectedRound, pts === 10 ? 0 : 10)} 
-                                    className={`w-full py-4 rounded-xl text-sm font-black border-2 flex items-center justify-center gap-3 transition-all ${pts === 10 ? 'bg-green-600 text-white border-green-600 shadow-lg' : 'bg-white text-gray-300 border-gray-100 active:bg-gray-100'}`}
-                                  >
-                                    <i className={pts === 10 ? "fas fa-check-circle" : "far fa-circle"}></i>
-                                    {pts === 10 ? '正解済み (+10pt)' : '未入力 / 挑戦中'}
-                                  </button>
-                                )}
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        // 通常ゲーム用の入力(チーム単位)
+                        <div className="space-y-4">
+                          {teams.map(team => {
+                            const current = scores.find(s => s.teamId === team.id && s.gameId === currentGame.id && s.roundIndex === selectedRound);
+                            const pts = current ? current.points : null;
+                            return (
+                              <div key={team.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                <div className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                                  <div className={`w-2 h-2 rounded-full ${team.color}`}></div> {team.name}
+                                </div>
+                                <div className="flex gap-2">
+                                  {currentGame.type.startsWith('ranking') ? (
+                                    [1, 2, 3, 4, 5, 6, 7, 8].map(rank => {
+                                      const p = currentGame.type === 'ranking-30' 
+                                        ? [30, 25, 20, 15, 10, 5, 3, 0][rank - 1] 
+                                        : [40, 35, 30, 25, 20, 15, 10, 5][rank - 1];
+                                      const isActive = pts === p && current;
+                                      return (
+                                        <button 
+                                          key={rank} 
+                                          onClick={() => updateScore(team.id, currentGame.id, selectedRound, p)} 
+                                          className={`flex-1 py-2 rounded-xl text-[10px] font-black border-2 transition-all ${isActive ? 'bg-gray-800 text-white border-gray-800 shadow-lg' : 'bg-white text-gray-400 border-gray-100 active:bg-gray-100'}`}
+                                        >
+                                          {rank}
+                                        </button>
+                                      );
+                                    })
+                                  ) : (
+                                    <button 
+                                      onClick={() => updateScore(team.id, currentGame.id, selectedRound, pts === 10 ? 0 : 10)} 
+                                      className={`w-full py-4 rounded-xl text-sm font-black border-2 flex items-center justify-center gap-3 transition-all ${pts === 10 ? 'bg-green-600 text-white border-green-600 shadow-lg' : 'bg-white text-gray-300 border-gray-100 active:bg-gray-100'}`}
+                                    >
+                                      <i className={pts === 10 ? "fas fa-check-circle" : "far fa-circle"}></i>
+                                      {pts === 10 ? '正解済み (+10pt)' : '未入力 / 挑戦中'}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'teams' && (
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-2xl p-5 shadow-md border border-red-50">
+                      <h2 className="text-xs font-black text-red-600 mb-4 uppercase flex items-center gap-2">
+                        <i className="fas fa-users"></i> チーム名の設定
+                      </h2>
+                      <div className="space-y-3">
+                        {teams.map(team => (
+                          <div key={team.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className={`w-4 h-4 rounded-full ${team.color} flex-shrink-0`}></div>
+                            {editingTeamId === team.id ? (
+                              <div className="flex-grow flex gap-2">
+                                <input 
+                                  type="text"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  className="flex-grow px-3 py-2 rounded-lg border-2 border-red-300 focus:outline-none focus:border-red-500 text-sm font-bold"
+                                  autoFocus
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      updateTeamName(team.id, editingName);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={() => updateTeamName(team.id, editingName)}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-black text-xs"
+                                >
+                                  保存
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingTeamId(null);
+                                    setEditingName('');
+                                  }}
+                                  className="px-4 py-2 bg-gray-400 text-white rounded-lg font-black text-xs"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex-grow text-sm font-black text-gray-700">
+                                  {team.name}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setEditingTeamId(team.id);
+                                    setEditingName(team.name);
+                                  }}
+                                  className="px-4 py-2 bg-blue-500 text-white rounded-lg font-black text-xs"
+                                >
+                                  編集
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* リレーグループ説明 */}
+                    <div className="bg-white rounded-2xl p-5 shadow-md border border-blue-50">
+                      <h2 className="text-xs font-black text-blue-600 mb-4 uppercase flex items-center gap-2">
+                        <i className="fas fa-running"></i> リレーのグループ編成
+                      </h2>
+                      <div className="space-y-3">
+                        {RELAY_GROUPS.map(group => {
+                          const groupTeams = teams.filter(t => group.teamIds.includes(t.id));
+                          return (
+                            <div key={group.id} className="p-3 bg-gray-50 rounded-xl">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className={`w-3 h-3 rounded-full ${group.color}`}></div>
+                                <span className="text-sm font-black text-gray-700">{group.name}</span>
+                              </div>
+                              <div className="flex gap-2 ml-5">
+                                {groupTeams.map(t => (
+                                  <span key={t.id} className="text-xs bg-white px-2 py-1 rounded text-gray-600">
+                                    {t.name}
+                                  </span>
+                                ))}
                               </div>
                             </div>
                           );
                         })}
                       </div>
+                      <p className="text-[10px] text-gray-500 mt-4 leading-relaxed">
+                        ※リレーは上記のグループで実施します。グループの順位に応じて、各チームに同じ得点が配分されます。
+                      </p>
                     </div>
                   </div>
                 )}
@@ -352,18 +545,22 @@
                 )}
               </main>
 
-              <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-white rounded-3xl flex items-center justify-center p-2 z-50 shadow-2xl w-[90%] max-sm:max-w-[320px]">
-                <button onClick={() => setActiveTab('leaderboard')} className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'leaderboard' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300'}`}>
-                  <i className="fas fa-trophy text-lg"></i>
-                  <span className="text-[9px] font-black mt-1">順位</span>
+              <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-white rounded-3xl flex items-center justify-center p-2 z-50 shadow-2xl w-[90%] max-sm:max-w-[380px]">
+                <button onClick={() => setActiveTab('leaderboard')} className={`flex flex-col items-center p-2 flex-1 transition-all rounded-2xl ${activeTab === 'leaderboard' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300'}`}>
+                  <i className="fas fa-trophy text-base"></i>
+                  <span className="text-[8px] font-black mt-1">順位</span>
                 </button>
-                <button onClick={() => setActiveTab('input')} className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'input' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-300'}`}>
-                  <i className="fas fa-edit text-lg"></i>
-                  <span className="text-[9px] font-black mt-1">入力</span>
+                <button onClick={() => setActiveTab('input')} className={`flex flex-col items-center p-2 flex-1 transition-all rounded-2xl ${activeTab === 'input' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-300'}`}>
+                  <i className="fas fa-edit text-base"></i>
+                  <span className="text-[8px] font-black mt-1">入力</span>
                 </button>
-                <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center p-3 flex-1 transition-all rounded-2xl ${activeTab === 'admin' ? 'bg-gray-800 text-white shadow-lg' : 'text-gray-300'}`}>
-                  <i className="fas fa-cog text-lg"></i>
-                  <span className="text-[9px] font-black mt-1">設定</span>
+                <button onClick={() => setActiveTab('teams')} className={`flex flex-col items-center p-2 flex-1 transition-all rounded-2xl ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-300'}`}>
+                  <i className="fas fa-users text-base"></i>
+                  <span className="text-[8px] font-black mt-1">チーム</span>
+                </button>
+                <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center p-2 flex-1 transition-all rounded-2xl ${activeTab === 'admin' ? 'bg-gray-800 text-white shadow-lg' : 'text-gray-300'}`}>
+                  <i className="fas fa-cog text-base"></i>
+                  <span className="text-[8px] font-black mt-1">設定</span>
                 </button>
               </nav>
             </div>
